@@ -24,6 +24,15 @@ inputs:
   coverage-reporter-version:
     description: 'Optionally force using a specific coverage reporter version'
     required: false
+  http-proxy:
+    description: 'HTTP proxy URL (e.g., http://proxy.example.com:8080)'
+    required: false
+  https-proxy:
+    description: 'HTTPS proxy URL (e.g., http://proxy.example.com:8080)'
+    required: false
+  no-proxy:
+    description: 'Comma-separated list of hosts that should not use proxy'
+    required: false
 runs:
   using: "composite"
   steps:
@@ -35,11 +44,25 @@ runs:
         echo "REPOSITORY_NAME=$(echo $GITHUB_REPOSITORY | cut -d '/' -f 2)" >> $GITHUB_ENV
         echo "CODACY_REPORTER_VERSION=$(if [ -n "${{ inputs.coverage-reporter-version }}" ]; then echo "${{ inputs.coverage-reporter-version }}"; fi)" >> $GITHUB_ENV
 
+        # Set proxy environment variables if provided
+        if [ -n "${{ inputs.http-proxy }}" ]; then
+          echo "HTTP_PROXY=${{ inputs.http-proxy }}" >> $GITHUB_ENV
+          echo "http_proxy=${{ inputs.http-proxy }}" >> $GITHUB_ENV
+        fi
+        if [ -n "${{ inputs.https-proxy }}" ]; then
+          echo "HTTPS_PROXY=${{ inputs.https-proxy }}" >> $GITHUB_ENV
+          echo "https_proxy=${{ inputs.https-proxy }}" >> $GITHUB_ENV
+        fi
+        if [ -n "${{ inputs.no-proxy }}" ]; then
+          echo "NO_PROXY=${{ inputs.no-proxy }}" >> $GITHUB_ENV
+          echo "no_proxy=${{ inputs.no-proxy }}" >> $GITHUB_ENV
+        fi
+
     - name: "Run coverage-reporter"
       shell: bash
       run: |
         echo "Welcome to Coverage-Reporter-Action"
-        
+
         set -eux
 
         report_list=''
