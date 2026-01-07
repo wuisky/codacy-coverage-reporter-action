@@ -58,6 +58,26 @@ runs:
           echo "no_proxy=${{ inputs.no-proxy }}" >> $GITHUB_ENV
         fi
 
+        # Set Java proxy options for Codacy Coverage Reporter
+        java_proxy_opts=""
+        if [ -n "${{ inputs.http-proxy }}" ]; then
+          proxy_host=$(echo "${{ inputs.http-proxy }}" | sed -E 's|^https?://([^:/]+).*|\1|')
+          proxy_port=$(echo "${{ inputs.http-proxy }}" | sed -E 's|^https?://[^:]+:([0-9]+).*|\1|')
+          if [ -z "$proxy_port" ] || [ "$proxy_port" = "${{ inputs.http-proxy }}" ]; then proxy_port="80"; fi
+          java_proxy_opts="$java_proxy_opts -Dhttp.proxyHost=$proxy_host -Dhttp.proxyPort=$proxy_port"
+        fi
+        if [ -n "${{ inputs.https-proxy }}" ]; then
+          proxy_host=$(echo "${{ inputs.https-proxy }}" | sed -E 's|^https?://([^:/]+).*|\1|')
+          proxy_port=$(echo "${{ inputs.https-proxy }}" | sed -E 's|^https?://[^:]+:([0-9]+).*|\1|')
+          if [ -z "$proxy_port" ] || [ "$proxy_port" = "${{ inputs.https-proxy }}" ]; then proxy_port="443"; fi
+          java_proxy_opts="$java_proxy_opts -Dhttps.proxyHost=$proxy_host -Dhttps.proxyPort=$proxy_port"
+        fi
+        if [ -n "${{ inputs.no-proxy }}" ]; then
+          no_proxy_hosts=$(echo "${{ inputs.no-proxy }}" | tr ',' '|')
+          java_proxy_opts="$java_proxy_opts -Dhttp.nonProxyHosts=$no_proxy_hosts"
+        fi
+        echo "JAVA_TOOL_OPTIONS=$java_proxy_opts" >> $GITHUB_ENV
+
     - name: "Run coverage-reporter"
       shell: bash
       run: |
