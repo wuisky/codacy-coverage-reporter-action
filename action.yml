@@ -108,6 +108,8 @@ runs:
         fi
 
         if [ -n "$java_proxy_opts" ]; then
+          # Trim leading/trailing whitespace
+          java_proxy_opts=$(echo "$java_proxy_opts" | xargs)
           export JAVA_TOOL_OPTIONS="$java_proxy_opts"
           echo "JAVA_TOOL_OPTIONS set to: $JAVA_TOOL_OPTIONS"
         fi
@@ -156,8 +158,9 @@ runs:
 
           echo "Calling reporter directly with Java proxy options..."
           echo "Java options: $java_proxy_opts"
+          echo "Full command will be: java $java_proxy_opts -jar $REPORTER_PATH report ..."
 
-          # Call reporter directly with Java options
+          # Call reporter directly with Java options (without quotes to allow word splitting)
           java $java_proxy_opts -jar "$REPORTER_PATH" report $lang $force_parser $auth $params --partial &&\
           java $java_proxy_opts -jar "$REPORTER_PATH" final $auth
         else
