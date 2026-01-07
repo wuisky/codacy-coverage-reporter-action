@@ -136,23 +136,21 @@ runs:
         # Download get.sh script
         curl -Ls https://coverage.codacy.com/get.sh -o /tmp/codacy-get.sh
 
-        # Modify get.sh to inject Java proxy options
+        # Modify get.sh to inject Java proxy options directly into the java command
         if [ -n "$java_proxy_opts" ]; then
           echo "Modifying get.sh to inject Java proxy settings..."
+          echo "Proxy options to inject: $java_proxy_opts"
 
-          # Use a simpler approach: directly set _JAVA_OPTIONS environment variable
-          # This is more reliable than modifying the script
-          export _JAVA_OPTIONS="$java_proxy_opts"
-          echo "_JAVA_OPTIONS set to: $_JAVA_OPTIONS"
+          # Line 227 contains: run_command="java -jar \"$reporter_path\""
+          # We need to inject proxy options between 'java' and '-jar'
+          sed -i "227s|java -jar|java $java_proxy_opts -jar|" /tmp/codacy-get.sh
+
+          echo "Modified java command in get.sh:"
+          sed -n '227p' /tmp/codacy-get.sh
         fi
 
         chmod +x /tmp/codacy-get.sh
 
-        # Debug: Show the java command lines in the script
-        echo "=== Java commands in get.sh ==="
-        grep -n "java " /tmp/codacy-get.sh | head -5
-        echo "==============================="
-
-        # Execute the script with _JAVA_OPTIONS set
+        # Execute the modified script
         bash /tmp/codacy-get.sh report $lang $force_parser $auth $params --partial &&\
         bash /tmp/codacy-get.sh final $auth
