@@ -142,17 +142,21 @@ runs:
         if [ -n "$java_proxy_opts" ]; then
           echo "Creating wrapper to bypass get.sh and call reporter directly with proxy..."
 
-          # Instead of modifying get.sh, we'll download the reporter and call it directly
-          # First, get the reporter version
+          # Same logic as get.sh to determine the jar URL
           REPORTER_VERSION="${CODACY_REPORTER_VERSION:-14.1.0}"
-          REPORTER_URL="https://github.com/codacy/codacy-coverage-reporter/releases/download/${REPORTER_VERSION}/codacy-coverage-reporter-linux"
-          REPORTER_PATH="$HOME/.cache/codacy/coverage-reporter/${REPORTER_VERSION}/codacy-coverage-reporter"
+          REPORTER_URL="https://github.com/codacy/codacy-coverage-reporter/releases/download/${REPORTER_VERSION}/codacy-coverage-reporter-${REPORTER_VERSION}-assembly.jar"
+          REPORTER_PATH="$HOME/.cache/codacy/coverage-reporter/${REPORTER_VERSION}/codacy-coverage-reporter-${REPORTER_VERSION}-assembly.jar"
 
           # Download reporter if not cached
           if [ ! -f "$REPORTER_PATH" ]; then
             echo "Downloading coverage reporter ${REPORTER_VERSION}..."
             mkdir -p "$(dirname "$REPORTER_PATH")"
-            curl -LS "$REPORTER_URL" -o "$REPORTER_PATH"
+            # Use -f to fail on HTTP errors
+            if ! curl -fLS "$REPORTER_URL" -o "$REPORTER_PATH"; then
+               echo "Download failed!"
+               rm -f "$REPORTER_PATH"
+               exit 1
+            fi
             chmod +x "$REPORTER_PATH"
           fi
 
