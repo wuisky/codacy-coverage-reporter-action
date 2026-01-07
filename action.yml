@@ -136,21 +136,33 @@ runs:
         # Download get.sh script
         curl -Ls https://coverage.codacy.com/get.sh -o /tmp/codacy-get.sh
 
-        # Modify get.sh to inject Java proxy options directly into the java command
+        # Create a wrapper script that sets Java options and calls the reporter directly
         if [ -n "$java_proxy_opts" ]; then
-          echo "Modifying get.sh to inject Java proxy settings..."
-          echo "Proxy options to inject: $java_proxy_opts"
+          echo "Creating wrapper to bypass get.sh and call reporter directly with proxy..."
 
-          # Line 227 contains: run_command="java -jar \"$reporter_path\""
-          # We need to inject proxy options between 'java' and '-jar'
-          sed -i "227s|java -jar|java $java_proxy_opts -jar|" /tmp/codacy-get.sh
+          # Instead of modifying get.sh, we'll download the reporter and call it directly
+          # First, get the reporter version
+          REPORTER_VERSION="${CODACY_REPORTER_VERSION:-14.1.0}"
+          REPORTER_URL="https://github.com/codacy/codacy-coverage-reporter/releases/download/${REPORTER_VERSION}/codacy-coverage-reporter-linux"
+          REPORTER_PATH="$HOME/.cache/codacy/coverage-reporter/${REPORTER_VERSION}/codacy-coverage-reporter"
 
-          echo "Modified java command in get.sh:"
-          sed -n '227p' /tmp/codacy-get.sh
+          # Download reporter if not cached
+          if [ ! -f "$REPORTER_PATH" ]; then
+            echo "Downloading coverage reporter ${REPORTER_VERSION}..."
+            mkdir -p "$(dirname "$REPORTER_PATH")"
+            curl -LS "$REPORTER_URL" -o "$REPORTER_PATH"
+            chmod +x "$REPORTER_PATH"
+          fi
+
+          echo "Calling reporter directly with Java proxy options..."
+          echo "Java options: $java_proxy_opts"
+
+          # Call reporter directly with Java options
+          java $java_proxy_opts -jar "$REPORTER_PATH" report $lang $force_parser $auth $params --partial &&\
+          java $java_proxy_opts -jar "$REPORTER_PATH" final $auth
+        else
+          # No proxy needed, use original get.sh
+          chmod +x /tmp/codacy-get.sh
+          bash /tmp/codacy-get.sh report $lang $force_parser $auth $params --partial &&\
+          bash /tmp/codacy-get.sh final $auth
         fi
-
-        chmod +x /tmp/codacy-get.sh
-
-        # Execute the modified script
-        bash /tmp/codacy-get.sh report $lang $force_parser $auth $params --partial &&\
-        bash /tmp/codacy-get.sh final $auth
