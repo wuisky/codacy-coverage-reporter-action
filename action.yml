@@ -81,7 +81,7 @@ runs:
     - name: "Run coverage-reporter"
       shell: bash
       run: |
-        echo "Welcome to Coverage-Reporter-Action"
+        echo "Welcome to Coverage-Reporter-Action yoyo"
 
         set -eux
 
@@ -133,10 +133,22 @@ runs:
         if [ -n "${{ inputs.force-coverage-parser }}" ]; then force_parser="--force-coverage-parser ${{ inputs.force-coverage-parser }}"; else force_parser=""; fi
         if [ -n "${{ inputs.language }}" ]; then lang="--language ${{ inputs.language }}"; else lang=""; fi
 
-        # Download get.sh script and modify it to preserve JAVA_TOOL_OPTIONS
+        # Download get.sh script
         curl -Ls https://coverage.codacy.com/get.sh -o /tmp/codacy-get.sh
+
+        # Modify get.sh to inject Java proxy options
+        if [ -n "$java_proxy_opts" ]; then
+          echo "Modifying get.sh to inject Java proxy settings..."
+          # Find the java command line and add proxy options before the jar execution
+          sed -i "s|\(java.*-jar\)|\1 $java_proxy_opts|g" /tmp/codacy-get.sh
+
+          # Alternative: inject JAVA_OPTS environment variable
+          sed -i "1a export JAVA_OPTS=\"$java_proxy_opts\"" /tmp/codacy-get.sh
+          sed -i "s|\(java \)|\1 \$JAVA_OPTS |g" /tmp/codacy-get.sh
+        fi
+
         chmod +x /tmp/codacy-get.sh
 
-        # Execute with explicit environment variable export
-        env JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS" bash /tmp/codacy-get.sh report $lang $force_parser $auth $params --partial &&\
-        env JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS" bash /tmp/codacy-get.sh final $auth
+        # Execute the modified script
+        bash /tmp/codacy-get.sh report $lang $force_parser $auth $params --partial &&\
+        bash /tmp/codacy-get.sh final $auth
