@@ -90,23 +90,26 @@ runs:
         if [ -n "${{ inputs.http-proxy }}" ]; then
           proxy_host=$(echo "${{ inputs.http-proxy }}" | sed -E 's|^https?://([^:/]+).*|\1|')
           proxy_port=$(echo "${{ inputs.http-proxy }}" | sed -E 's|^https?://[^:]+:([0-9]+).*|\1|')
-          if [ -z "$proxy_port" ] || [ "$proxy_port" = "${{ inputs.http-proxy }}" ]; then proxy_port="80"; fi
+          if [ -z "$proxy_port" ] || [ "$proxy_port" = "${{ inputs.http-proxy}}" ]; then proxy_port="80"; fi
           java_proxy_opts="$java_proxy_opts -Dhttp.proxyHost=$proxy_host -Dhttp.proxyPort=$proxy_port"
+          echo "HTTP proxy configured: $proxy_host:$proxy_port"
         fi
         if [ -n "${{ inputs.https-proxy }}" ]; then
           proxy_host=$(echo "${{ inputs.https-proxy }}" | sed -E 's|^https?://([^:/]+).*|\1|')
           proxy_port=$(echo "${{ inputs.https-proxy }}" | sed -E 's|^https?://[^:]+:([0-9]+).*|\1|')
           if [ -z "$proxy_port" ] || [ "$proxy_port" = "${{ inputs.https-proxy }}" ]; then proxy_port="443"; fi
           java_proxy_opts="$java_proxy_opts -Dhttps.proxyHost=$proxy_host -Dhttps.proxyPort=$proxy_port"
+          echo "HTTPS proxy configured: $proxy_host:$proxy_port"
         fi
         if [ -n "${{ inputs.no-proxy }}" ]; then
           no_proxy_hosts=$(echo "${{ inputs.no-proxy }}" | tr ',' '|')
           java_proxy_opts="$java_proxy_opts -Dhttp.nonProxyHosts=$no_proxy_hosts"
+          echo "No proxy hosts: $no_proxy_hosts"
         fi
 
         if [ -n "$java_proxy_opts" ]; then
           export JAVA_TOOL_OPTIONS="$java_proxy_opts"
-          echo "Setting JAVA_TOOL_OPTIONS: $JAVA_TOOL_OPTIONS"
+          echo "JAVA_TOOL_OPTIONS set to: $JAVA_TOOL_OPTIONS"
         fi
 
         report_list=''
@@ -130,5 +133,10 @@ runs:
         if [ -n "${{ inputs.force-coverage-parser }}" ]; then force_parser="--force-coverage-parser ${{ inputs.force-coverage-parser }}"; else force_parser=""; fi
         if [ -n "${{ inputs.language }}" ]; then lang="--language ${{ inputs.language }}"; else lang=""; fi
 
-        bash <(curl -Ls https://coverage.codacy.com/get.sh) report $lang $force_parser $auth $params --partial &&\
-        bash <(curl -Ls https://coverage.codacy.com/get.sh) final $auth
+        # Download get.sh script and modify it to preserve JAVA_TOOL_OPTIONS
+        curl -Ls https://coverage.codacy.com/get.sh -o /tmp/codacy-get.sh
+        chmod +x /tmp/codacy-get.sh
+
+        # Execute with explicit environment variable export
+        env JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS" bash /tmp/codacy-get.sh report $lang $force_parser $auth $params --partial &&\
+        env JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS" bash /tmp/codacy-get.sh final $auth
